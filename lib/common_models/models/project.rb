@@ -1,7 +1,7 @@
 module CommonModels
   class Project < ActiveRecord::Base
     include Statesman::Adapters::ActiveRecordQueries
-    FIELDS = [:goal, :headline, :video_url, :created_at, :updated_at, :about_html, :recommended, :video_thumbnail, :status, :online_days, :more_links, :uploaded_image, :video_embed_url, :audited_user_name, :audited_user_cpf, :audited_user_moip_login, :audited_user_phone_number, :traffic_sources, :budget, :full_text_index, :budget_html, :expires_at, :city_id, :origin_id, :service_fee, :total_installments, :tracker_snippet_html, :ip_address, :published_ip, :skip_finish, :admin_notes, :cover_image, :common_id]
+    FIELDS = [:goal, :headline, :video_url, :created_at, :updated_at, :about_html, :recommended, :video_thumbnail, :status, :state, :online_days, :more_links, :uploaded_image, :video_embed_url, :audited_user_name, :audited_user_cpf, :audited_user_moip_login, :audited_user_phone_number, :traffic_sources, :budget, :full_text_index, :budget_html, :expires_at, :city_id, :origin_id, :service_fee, :total_installments, :tracker_snippet_html, :ip_address, :published_ip, :skip_finish, :admin_notes, :cover_image, :common_id]
     HEADLINE_MAXLENGTH = 100
     PUBLISHED_STATES = %w[online waiting_funds successful failed].freeze
 
@@ -23,6 +23,11 @@ module CommonModels
     validates_format_of :permalink, with: /\A(\w|-)*\Z/
     validates_presence_of :permalink, allow_nil: true
 
+    scope :with_state, ->(state) {	
+      where('projects.state in (?)', state)	
+    }
+
+    scope :with_states, ->(state) { with_state(state) }
 
     def self.find_sti_class(type_name)
       case type_name
