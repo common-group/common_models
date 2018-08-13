@@ -28,6 +28,9 @@ require 'common_models/models/user_api_key'
 
 module CommonModels
   def self.extended(obj)
+    Statesman.configure do
+      storage_adapter(Statesman::Adapters::ActiveRecord)
+    end
     ActiveRecord::Base.logger = Logger.new('debug.log')
     config = ENV['DATABASE_URL'].presence || @config
     ActiveRecord::Base.establish_connection(config)

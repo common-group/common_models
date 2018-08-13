@@ -1,7 +1,8 @@
 module CommonModels
   class Project < ActiveRecord::Base
     include Statesman::Adapters::ActiveRecordQueries
-    FIELDS = [:goal, :headline, :video_url, :created_at, :updated_at, :about_html, :recommended, :video_thumbnail, :status, :state, :online_days, :more_links, :uploaded_image, :video_embed_url, :audited_user_name, :audited_user_cpf, :audited_user_moip_login, :audited_user_phone_number, :traffic_sources, :budget, :full_text_index, :budget_html, :expires_at, :city_id, :origin_id, :service_fee, :total_installments, :tracker_snippet_html, :ip_address, :published_ip, :skip_finish, :admin_notes, :cover_image, :common_id]
+    FIELDS = [:goal, :headline, :video_url, :created_at, :updated_at, :about_html, :recommended, :video_thumbnail, :status, :online_days, :more_links, :uploaded_image, :video_embed_url, :audited_user_name, :audited_user_cpf, :audited_user_moip_login, :audited_user_phone_number, :traffic_sources, :budget, :full_text_index, :budget_html, :expires_at, :city_id, :origin_id, :service_fee, :total_installments, :tracker_snippet_html, :ip_address, :published_ip, :skip_finish, :admin_notes, :cover_image, :common_id]
+    alias_attribute :state, :status
     HEADLINE_MAXLENGTH = 100
     PUBLISHED_STATES = %w[online waiting_funds successful failed].freeze
 
@@ -13,6 +14,7 @@ module CommonModels
     has_many :goals, foreign_key: :project_id
     has_many :reports, foreign_key: :project_id
     has_many :contributions, foreign_key: :project_id
+    has_many :catalog_payments, through: :contributions
     has_many :project_transitions, autosave: false
 
     validates_presence_of :name, :user, :service_fee
@@ -40,10 +42,6 @@ module CommonModels
       end
     end
 
-    def state
-      status
-    end
-
     def paid_pledged
       paid_pledged ||= contributions.is_confirmed.sum(:value)
     end
@@ -52,14 +50,22 @@ module CommonModels
       paid_pledged >= goal
     end
 
+    def expired?
+      expires_at && expires_at < Time.current
+    end
+
+    def in_time_to_wait?
+      catalog_payments.waiting_payment.exists?
+    end
+
     delegate :push_to_draft, :reject, :push_to_online, :fake_push_to_online, :finish, :push_to_trash,
              :can_transition_to?, :transition_to, :can_reject?, :can_push_to_trash?,
              :can_push_to_online?, :can_push_to_draft?, to: :state_machine
 
-    # Init all or nothing machine
     def state_machine
-      @state_machine ||= CommonModels::AonProjectMachine.new(self, {
-                                               transition_class: CommonModels::ProjectTransition
+      @state_machine ||= AonProjectMachine.new(self, {
+                                               transition_class: CommonModels::ProjectTransition,
+                                               association_name: :project_transitions
                                              })
     end
 

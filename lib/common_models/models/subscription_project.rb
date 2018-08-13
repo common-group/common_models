@@ -15,7 +15,8 @@ module CommonModels
     # instace of a subscription project state machine
     def state_machine
       @state_machine ||= SubProjectMachine.new(self, {
-                                                  transition_class: CommonModels::ProjectTransition
+                                               transition_class: CommonModels::ProjectTransition,
+                                               association_name: :project_transitions
                                                 })
     end
   end

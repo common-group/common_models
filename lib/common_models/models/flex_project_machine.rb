@@ -1,8 +1,6 @@
-# frozen_string_literal: true
-
-  require 'statesman'
+module CommonModels
   class FlexProjectMachine
-    include Statesman::Machine
+      include Statesman::Machine
 
     def self.basic_validation_states
       %i[online successful].freeze
@@ -29,13 +27,48 @@
       # definitions
       yield self if block_given?
 
+      # Ensure that project is valid when try change
+      # the project state
+      guard_transition(to: basic_validation_states) do |project, t, m|
+        # TODO: rethink this
+        to_state = m[:to_state].to_s
+        project.state = to_state
+        valid = project.valid?
+        project.state = project.state_was
+
+        # if project.errors.present?
+        #   # save errors on database
+        #   project.errors.messages.each do |error|
+        #     messages = error[1]
+        #     messages.each do |message|
+        #       project.project_errors.create(error: message, to_state: to_state)
+        #     end
+        #   end
+        # end
+        valid || m[:skip_validation]
+      end
+
+      # Ensure that project already expired to enter on waiting_funds or successful
+      guard_transition(to: need_expiration_states) do |project|
+        project.expired?
+      end
+
+      # Ensure that project has pending contributions before enter on waiting_funds
+      guard_transition(to: :waiting_funds) do |project|
+        project.in_time_to_wait? # && !project.project_cancelation.present?
+      end
+
+      guard_transition(to: finished_states) do |project|
+        !project.in_time_to_wait? # && !project.project_cancelation.present?
+      end
+
       # Ensure that project has not more pending contributions
       guard_transition(to: :failed) do |project|
-        project.is_a?(FlexibleProject) ? project.paid_pledged == 0 : true
+        project.is_a?(CommonModels::FlexibleProject) ? project.paid_pledged == 0 : true
       end
 
       guard_transition(to: :successful) do |project|
-        project.is_a?(FlexibleProject) ? project.paid_pledged > 0 : true
+        project.is_a?(CommonModels::FlexibleProject) ? project.paid_pledged > 0 : true
       end
 
       # Before transition, change the state to trigger validations
@@ -43,6 +76,18 @@
         transition.metadata[:from_state] = project.state
         project.state = transition.to_state
       end
+
+      # After transition run, persist the current state
+      # into model.state field.
+      after_transition do |project, transition|
+        project.save(validate: false) # make sure state persists even if project is invalid
+        next if transition.metadata['skip_callbacks']
+        from_state = transition.metadata[:from_state]
+      end
+
+      # after_transition(to: :successful) do |project|
+      #   BalanceTransaction.insert_successful_project_transactions(project.id)
+      # end
     end
 
     setup_machine do
@@ -104,3 +149,4 @@
       transition_to(:waiting_funds) || transition_to(:failed) || transition_to(:successful)
     end
   end
+end

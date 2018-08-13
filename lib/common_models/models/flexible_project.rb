@@ -15,7 +15,8 @@ module CommonModels
     # instace of a flexible project state machine
     def state_machine
       @state_machine ||= FlexProjectMachine.new(self, {
-                                                  transition_class: CommonModels::ProjectTransition
+                                                transition_class: CommonModels::ProjectTransition,
+                                                association_name: :project_transitions
                                                 })
     end
   end

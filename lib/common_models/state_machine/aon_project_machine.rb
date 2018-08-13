@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-module CommonModels
-  class AonProjectMachine < CommonModels::FlexProjectMachine
+  class AonProjectMachine < FlexProjectMachine
     setup_machine do
       transition from: :deleted, to: %i[draft]
       transition from: :rejected, to: %i[draft deleted]
@@ -24,4 +23,3 @@ module CommonModels
       end
     end
   end
-end

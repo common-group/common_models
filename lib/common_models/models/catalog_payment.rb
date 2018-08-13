@@ -7,5 +7,9 @@ module CommonModels
     belongs_to :subscription
     belongs_to :contribution
     belongs_to :reward
+
+    # @TODO implement waiting_payment on the DB
+    scope :waiting_payment, -> { where(status: :pending) }
+
   end
 end

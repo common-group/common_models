@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'statesman'
 class SubProjectMachine
   include Statesman::Machine
 
